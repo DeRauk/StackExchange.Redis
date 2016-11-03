@@ -1818,6 +1818,19 @@ namespace StackExchange.Redis
         public bool PreserveAsyncOrder { get; set; }
 
         /// <summary>
+        /// Latency, in milliseconds, to inject into calls for debug purposes.
+        /// Will only be used if DebugLatencyKeySubstring is not null
+        /// </summary>
+        public int DebugLatency { get; set; }
+
+        /// <summary>
+        /// If not null, all operations with keys containing this substring will have 
+        /// latency injected into the call for debug purposes.  The amount of latency added
+        /// comes from the DebugLatency property
+        /// </summary>
+        public string DebugLatencyKeySubstring { get; set; }
+
+        /// <summary>
         /// Indicates whether any servers are connected
         /// </summary>
         public bool IsConnected

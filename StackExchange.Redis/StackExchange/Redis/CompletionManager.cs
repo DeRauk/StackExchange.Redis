@@ -5,6 +5,8 @@ using System.Threading;
 
 namespace StackExchange.Redis
 {
+    using System.Diagnostics;
+
     sealed partial class CompletionManager
     {
         private static readonly WaitCallback processAsyncCompletionQueue = ProcessAsyncCompletionQueue,
@@ -26,6 +28,27 @@ namespace StackExchange.Redis
         public void CompleteSyncOrAsync(ICompletable operation)
         {
             if (operation == null) return;
+
+            // Delay our test operations
+            if (multiplexer.DebugLatencyKeySubstring != null && operation is Message
+                && ((Message)operation).CommandAndKey.Contains(multiplexer.DebugLatencyKeySubstring))
+            {
+                System.Threading.Timer timer = null;
+
+                timer = new System.Threading.Timer(
+                    (obj) =>
+                        {
+                            this.CompleteSyncOrAsyncImpl(operation);
+                            timer.Dispose();
+                        }, null, multiplexer.DebugLatency, System.Threading.Timeout.Infinite);
+
+                return;
+            }
+
+            CompleteSyncOrAsyncImpl(operation);
+        }
+        private void CompleteSyncOrAsyncImpl(ICompletable operation)
+        {
             if (operation.TryComplete(false))
             {
                 multiplexer.Trace("Completed synchronously: " + operation, name);
@@ -49,7 +72,8 @@ namespace StackExchange.Redis
                         OnCompletedAsync();
                         ThreadPool.QueueUserWorkItem(processAsyncCompletionQueue, this);
                     }
-                } else
+                }
+                else
                 {
                     multiplexer.Trace("Using thread-pool for asynchronous completion", name);
                     ThreadPool.QueueUserWorkItem(anyOrderCompletionHandler, operation);
